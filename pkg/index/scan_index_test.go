@@ -2,6 +2,7 @@ package index
 
 import (
 	"container/list"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -201,7 +202,7 @@ func TestScanIndex_Add(t *testing.T) {
 func TestScanIndex_Remove(t *testing.T) {
 	type fields struct {
 		rows []*entity.Row
-		free *list.List
+		free []int
 	}
 	type args struct {
 		key entity.Key
@@ -210,18 +211,93 @@ func TestScanIndex_Remove(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		wantErr bool
+		want    fields
+		wantErr error
 	}{
-		// TODO: Add test cases.
+		{
+			name: "No existing",
+			fields: fields{
+				rows: []*entity.Row{},
+				free: nil,
+			},
+			args: args{
+				key: 1,
+			},
+			want: fields{
+				rows: []*entity.Row{},
+				free: nil,
+			},
+			wantErr: errors.New("invalid key"),
+		},
+		{
+			name: "Some existing - No Free Indexes",
+			fields: fields{
+				rows: []*entity.Row{
+					{
+						Key:    1,
+						Values: []entity.Value{"val1"},
+					},
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free: nil,
+			},
+			args: args{
+				key: 1,
+			},
+			want: fields{
+				rows: []*entity.Row{
+					nil,
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free: []int{0},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Some existing - Some Free Indexes",
+			fields: fields{
+				rows: []*entity.Row{
+					nil,
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free: []int{0},
+			},
+			args: args{
+				key: 2,
+			},
+			want: fields{
+				rows: []*entity.Row{nil, nil},
+				free: []int{0, 1},
+			},
+			wantErr: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			si := &ScanIndex{
 				rows: tt.fields.rows,
-				free: tt.fields.free,
+				free: list.New(),
 			}
-			if err := si.Remove(tt.args.key); (err != nil) != tt.wantErr {
-				t.Errorf("ScanIndex.Remove() error = %v, wantErr %v", err, tt.wantErr)
+			for _, i := range tt.fields.free {
+				si.free.PushBack(i)
+			}
+			err := si.Remove(tt.args.key)
+			assert.Equal(t, tt.wantErr, err)
+			assert.ElementsMatch(t, tt.want.rows, si.rows)
+			assert.Equal(t, len(tt.want.free), si.free.Len())
+			e := si.free.Front()
+			for _, i := range tt.want.free {
+				assert.Equal(t, i, e.Value)
+				e = e.Next()
 			}
 		})
 	}
@@ -230,7 +306,7 @@ func TestScanIndex_Remove(t *testing.T) {
 func TestScanIndex_Get(t *testing.T) {
 	type fields struct {
 		rows []*entity.Row
-		free *list.List
+		free []int
 	}
 	type args struct {
 		key entity.Key
@@ -240,24 +316,100 @@ func TestScanIndex_Get(t *testing.T) {
 		fields  fields
 		args    args
 		want    entity.Row
-		wantErr bool
+		wantErr error
 	}{
-		// TODO: Add test cases.
+		{
+			name: "No existing",
+			fields: fields{
+				rows: []*entity.Row{},
+				free: nil,
+			},
+			args: args{
+				key: 1,
+			},
+			want:    entity.Row{},
+			wantErr: errors.New("invalid key"),
+		},
+		{
+			name: "Some existing - No Free Indexes",
+			fields: fields{
+				rows: []*entity.Row{
+					{
+						Key:    1,
+						Values: []entity.Value{"val1"},
+					},
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free: nil,
+			},
+			args: args{
+				key: 1,
+			},
+			want: entity.Row{
+				Key:    1,
+				Values: []entity.Value{"val1"},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Some existing - Some Free Indexes",
+			fields: fields{
+				rows: []*entity.Row{
+					nil,
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free: []int{0},
+			},
+			args: args{
+				key: 2,
+			},
+			want: entity.Row{
+				Key:    2,
+				Values: []entity.Value{"val2"},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Some existing - Some Free Indexes 2",
+			fields: fields{
+				rows: []*entity.Row{
+					nil,
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+					nil,
+				},
+				free: []int{0, 2},
+			},
+			args: args{
+				key: 2,
+			},
+			want: entity.Row{
+				Key:    2,
+				Values: []entity.Value{"val2"},
+			},
+			wantErr: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			si := &ScanIndex{
 				rows: tt.fields.rows,
-				free: tt.fields.free,
+				free: list.New(),
 			}
-			got, err := si.Get(tt.args.key)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ScanIndex.Get() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			for _, i := range tt.fields.free {
+				si.free.PushBack(i)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ScanIndex.Get() = %v, want %v", got, tt.want)
-			}
+			row, err := si.Get(tt.args.key)
+			assert.Equal(t, tt.wantErr, err)
+			assert.Equal(t, tt.want, row)
 		})
 	}
 }
@@ -290,31 +442,87 @@ func TestScanIndex_Iterator(t *testing.T) {
 func TestScanIndex_Size(t *testing.T) {
 	type fields struct {
 		rows []*entity.Row
-		free *list.List
+		free []int
 	}
 	tests := []struct {
 		name   string
 		fields fields
 		want   int
 	}{
-		// TODO: Add test cases.
+		{
+			name: "No existing",
+			fields: fields{
+				rows: []*entity.Row{},
+				free: nil,
+			},
+			want: 0,
+		},
+		{
+			name: "Some existing - No Free Indexes",
+			fields: fields{
+				rows: []*entity.Row{
+					{
+						Key:    1,
+						Values: []entity.Value{"val1"},
+					},
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free: nil,
+			},
+			want: 2,
+		},
+		{
+			name: "Some existing - Some Free Indexes",
+			fields: fields{
+				rows: []*entity.Row{
+					nil,
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free: []int{0},
+			},
+			want: 1,
+		},
+		{
+			name: "Some existing - Some Free Indexes 2",
+			fields: fields{
+				rows: []*entity.Row{
+					nil,
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+					nil,
+				},
+				free: []int{0, 2},
+			},
+			want: 1,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			si := &ScanIndex{
 				rows: tt.fields.rows,
-				free: tt.fields.free,
+				free: list.New(),
 			}
-			if got := si.Size(); got != tt.want {
-				t.Errorf("ScanIndex.Size() = %v, want %v", got, tt.want)
+			for _, i := range tt.fields.free {
+				si.free.PushBack(i)
 			}
+			size := si.Size()
+			assert.Equal(t, tt.want, size)
 		})
 	}
 }
 
 func TestScanIterator_Next(t *testing.T) {
 	type fields struct {
-		index    *ScanIndex
+		rows     []*entity.Row
+		free     []int
 		position int
 	}
 	tests := []struct {
@@ -322,42 +530,263 @@ func TestScanIterator_Next(t *testing.T) {
 		fields fields
 		want   bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "No existing",
+			fields: fields{
+				rows:     []*entity.Row{},
+				free:     nil,
+				position: -1,
+			},
+			want: false,
+		},
+		{
+			name: "Some existing - No Free Indexes",
+			fields: fields{
+				rows: []*entity.Row{
+					{
+						Key:    1,
+						Values: []entity.Value{"val1"},
+					},
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free:     nil,
+				position: -1,
+			},
+			want: true,
+		},
+		{
+			name: "Some existing - No Free Indexes 1",
+			fields: fields{
+				rows: []*entity.Row{
+					{
+						Key:    1,
+						Values: []entity.Value{"val1"},
+					},
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free:     nil,
+				position: 1,
+			},
+			want: false,
+		},
+		{
+			name: "Some existing - Some Free Indexes",
+			fields: fields{
+				rows: []*entity.Row{
+					nil,
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free:     []int{0},
+				position: -1,
+			},
+			want: true,
+		},
+		{
+			name: "Some existing - Some Free Indexes 2",
+			fields: fields{
+				rows: []*entity.Row{
+					nil,
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+					nil,
+				},
+				free:     []int{0, 2},
+				position: -1,
+			},
+			want: true,
+		},
+		{
+			name: "Some existing - Some Free Indexes 3",
+			fields: fields{
+				rows: []*entity.Row{
+					nil,
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+					nil,
+				},
+				free:     []int{0, 2},
+				position: -1,
+			},
+			want: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			sidx := &ScanIndex{
+				rows: tt.fields.rows,
+				free: list.New(),
+			}
+			for _, i := range tt.fields.free {
+				sidx.free.PushBack(i)
+			}
 			si := &ScanIterator{
-				index:    tt.fields.index,
+				index:    sidx,
 				position: tt.fields.position,
 			}
-			if got := si.Next(); got != tt.want {
-				t.Errorf("ScanIterator.Next() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, si.Next())
 		})
 	}
 }
 
 func TestScanIterator_Current(t *testing.T) {
 	type fields struct {
-		index    *ScanIndex
+		rows     []*entity.Row
+		free     []int
 		position int
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   entity.Row
+		name    string
+		fields  fields
+		want    entity.Row
+		wantErr error
 	}{
-		// TODO: Add test cases.
+		{
+			name: "No existing",
+			fields: fields{
+				rows:     []*entity.Row{},
+				free:     nil,
+				position: -1,
+			},
+			want:    entity.Row{},
+			wantErr: errors.New("invalid cursor"),
+		},
+		{
+			name: "No existing 1",
+			fields: fields{
+				rows:     []*entity.Row{},
+				free:     nil,
+				position: 0,
+			},
+			want:    entity.Row{},
+			wantErr: errors.New("invalid cursor"),
+		},
+		{
+			name: "Some existing - No Free Indexes",
+			fields: fields{
+				rows: []*entity.Row{
+					{
+						Key:    1,
+						Values: []entity.Value{"val1"},
+					},
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free:     nil,
+				position: 0,
+			},
+			want: entity.Row{
+				Key:    1,
+				Values: []entity.Value{"val1"},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Some existing - No Free Indexes 1",
+			fields: fields{
+				rows: []*entity.Row{
+					{
+						Key:    1,
+						Values: []entity.Value{"val1"},
+					},
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free:     nil,
+				position: 1,
+			},
+			want: entity.Row{
+				Key:    2,
+				Values: []entity.Value{"val2"},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Some existing - Some Free Indexes",
+			fields: fields{
+				rows: []*entity.Row{
+					nil,
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+				},
+				free:     []int{0},
+				position: 0,
+			},
+			want:    entity.Row{},
+			wantErr: errors.New("invalid cursor"),
+		},
+		{
+			name: "Some existing - Some Free Indexes 2",
+			fields: fields{
+				rows: []*entity.Row{
+					nil,
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+					nil,
+				},
+				free:     []int{0, 2},
+				position: 1,
+			},
+			want: entity.Row{
+				Key:    2,
+				Values: []entity.Value{"val2"},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Some existing - Some Free Indexes 3",
+			fields: fields{
+				rows: []*entity.Row{
+					nil,
+					{
+						Key:    2,
+						Values: []entity.Value{"val2"},
+					},
+					nil,
+				},
+				free:     []int{0, 2},
+				position: 2,
+			},
+			want:    entity.Row{},
+			wantErr: errors.New("invalid cursor"),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			sidx := &ScanIndex{
+				rows: tt.fields.rows,
+				free: list.New(),
+			}
+			for _, i := range tt.fields.free {
+				sidx.free.PushBack(i)
+			}
 			si := &ScanIterator{
-				index:    tt.fields.index,
+				index:    sidx,
 				position: tt.fields.position,
 			}
-			if got := si.Current(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ScanIterator.Current() = %v, want %v", got, tt.want)
-			}
+			row, err := si.Current()
+			assert.Equal(t, tt.wantErr, err)
+			assert.Equal(t, tt.want, row)
 		})
 	}
 }

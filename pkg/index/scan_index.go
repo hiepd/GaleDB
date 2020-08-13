@@ -2,6 +2,7 @@ package index
 
 import (
 	"container/list"
+	"errors"
 
 	"github.com/hiepd/galedb/pkg/entity"
 )
@@ -35,13 +36,20 @@ func (si *ScanIndex) Add(row entity.Row) error {
 }
 
 func (si *ScanIndex) Remove(key entity.Key) error {
-	position := key - 1
+	position := int(key - 1)
+	if position < 0 || position >= len(si.rows) {
+		return errors.New("invalid key")
+	}
 	si.rows[position] = nil
 	si.free.PushBack(position)
 	return nil
 }
 
 func (si *ScanIndex) Get(key entity.Key) (entity.Row, error) {
+	position := int(key - 1)
+	if position < 0 || position >= len(si.rows) {
+		return entity.Row{}, errors.New("invalid key")
+	}
 	return *si.rows[key-1], nil
 }
 
@@ -53,7 +61,7 @@ func (si *ScanIndex) Iterator() Iterator {
 }
 
 func (si *ScanIndex) Size() int {
-	return len(si.rows)
+	return len(si.rows) - si.free.Len()
 }
 
 type ScanIterator struct {
@@ -63,9 +71,15 @@ type ScanIterator struct {
 
 func (si *ScanIterator) Next() bool {
 	si.position++
-	return si.position < si.index.Size()
+	for si.position < len(si.index.rows) && si.index.rows[si.position] == nil {
+		si.position++
+	}
+	return si.position < len(si.index.rows)
 }
 
-func (si *ScanIterator) Current() entity.Row {
-	return *si.index.rows[si.position]
+func (si *ScanIterator) Current() (entity.Row, error) {
+	if si.position < 0 || si.position >= len(si.index.rows) || si.index.rows[si.position] == nil {
+		return entity.Row{}, errors.New("invalid cursor")
+	}
+	return *si.index.rows[si.position], nil
 }
