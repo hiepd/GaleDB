@@ -19,20 +19,21 @@ func NewScanIndex() Index {
 	}
 }
 
-func (si *ScanIndex) Add(row entity.Row) error {
+func (si *ScanIndex) Add(row entity.Row) (entity.Key, error) {
+	var key entity.Key
 	if si.free.Len() == 0 {
-		key := entity.Key(len(si.rows) + 1)
+		key = entity.Key(len(si.rows) + 1)
 		row.Key = key
 		si.rows = append(si.rows, &row)
 	} else {
 		e := si.free.Front()
 		freePosition := e.Value.(int)
-		key := entity.Key(freePosition + 1)
+		key = entity.Key(freePosition + 1)
 		row.Key = key
 		si.rows[freePosition] = &row
 		si.free.Remove(e)
 	}
-	return nil
+	return key, nil
 }
 
 func (si *ScanIndex) Remove(key entity.Key) error {
@@ -69,17 +70,13 @@ type ScanIterator struct {
 	position int
 }
 
-func (si *ScanIterator) Next() bool {
+func (si *ScanIterator) Next() (entity.Row, error) {
 	si.position++
 	for si.position < len(si.index.rows) && si.index.rows[si.position] == nil {
 		si.position++
 	}
-	return si.position < len(si.index.rows)
-}
-
-func (si *ScanIterator) Current() (entity.Row, error) {
-	if si.position < 0 || si.position >= len(si.index.rows) || si.index.rows[si.position] == nil {
-		return entity.Row{}, errors.New("invalid cursor")
+	if si.position >= len(si.index.rows) {
+		return entity.Row{}, EndOfIterator
 	}
 	return *si.index.rows[si.position], nil
 }

@@ -43,6 +43,7 @@ func TestScanIndex_Add(t *testing.T) {
 		fields  fields
 		args    args
 		want    fields
+		wantKey entity.Key
 		wantErr error
 	}{
 		{
@@ -66,6 +67,7 @@ func TestScanIndex_Add(t *testing.T) {
 				},
 				free: nil,
 			},
+			wantKey: 1,
 			wantErr: nil,
 		},
 		{
@@ -106,6 +108,7 @@ func TestScanIndex_Add(t *testing.T) {
 				},
 				free: nil,
 			},
+			wantKey: 3,
 			wantErr: nil,
 		},
 		{
@@ -139,6 +142,7 @@ func TestScanIndex_Add(t *testing.T) {
 				},
 				free: nil,
 			},
+			wantKey: 1,
 			wantErr: nil,
 		},
 		{
@@ -174,6 +178,7 @@ func TestScanIndex_Add(t *testing.T) {
 				},
 				free: []int{2},
 			},
+			wantKey: 1,
 			wantErr: nil,
 		},
 	}
@@ -186,10 +191,11 @@ func TestScanIndex_Add(t *testing.T) {
 			for _, i := range tt.fields.free {
 				si.free.PushBack(i)
 			}
-			err := si.Add(tt.args.row)
+			key, err := si.Add(tt.args.row)
 			assert.Equal(t, tt.wantErr, err)
 			assert.ElementsMatch(t, tt.want.rows, si.rows)
 			assert.Equal(t, len(tt.want.free), si.free.Len())
+			assert.Equal(t, tt.wantKey, key)
 			e := si.free.Front()
 			for _, i := range tt.want.free {
 				assert.Equal(t, i, e.Value)

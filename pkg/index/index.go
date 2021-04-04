@@ -5,7 +5,7 @@ import (
 )
 
 type Index interface {
-	Add(row entity.Row) error
+	Add(row entity.Row) (entity.Key, error)
 	Remove(key entity.Key) error
 	Get(key entity.Key) (entity.Row, error)
 	Iterator() Iterator

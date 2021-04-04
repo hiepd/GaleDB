@@ -1,8 +1,13 @@
 package index
 
-import "github.com/hiepd/galedb/pkg/entity"
+import (
+	"errors"
+
+	"github.com/hiepd/galedb/pkg/entity"
+)
+
+var EndOfIterator = errors.New("end of iterator")
 
 type Iterator interface {
-	Next() bool
-	Current() (entity.Row, error)
+	Next() (entity.Row, error)
 }
