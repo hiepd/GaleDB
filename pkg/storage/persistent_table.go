@@ -6,13 +6,14 @@ import (
 )
 
 type PersistentTable struct {
-	Columns []*Column
+	columns []entity.Column
 	Indexes []index.Index
 }
 
-func NewPersisentTable() Table {
+func NewPersisentTable(columns []entity.Column) Table {
 	indexes := []index.Index{index.NewScanIndex()}
 	return &PersistentTable{
+		columns: columns,
 		Indexes: indexes,
 	}
 }
@@ -34,4 +35,8 @@ func (pt *PersistentTable) AddRow(row entity.Row) error {
 		}
 	}
 	return nil
+}
+
+func (pt *PersistentTable) Columns() []entity.Column {
+	return pt.columns
 }

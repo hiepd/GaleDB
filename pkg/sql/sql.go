@@ -1,3 +1,5 @@
+package sql
+
 const (
 	CompareEqual = iota + 1
 	CompareEqualOrGreater

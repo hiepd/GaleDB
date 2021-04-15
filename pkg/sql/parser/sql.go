@@ -10,101 +10,110 @@ func setParseTree(yylex yyLexer, stmt Statement) {
 type yySymType struct {
 	yys       int
 	str       string
+	num       int
 	statement Statement
+	strs      []string
+	cond      *Condition
+	conds     []*Condition
+	where     *Where
 }
 
 const LEX_ERROR = 57346
 const NAME = 57347
-const STRING = 57348
-const INTNUM = 57349
-const APPROXNUM = 57350
-const OR = 57351
-const AND = 57352
-const NOT = 57353
-const ASTERISK = 57354
-const ALL = 57355
-const AMMSC = 57356
-const ANY = 57357
-const ASC = 57358
-const AS = 57359
-const AUTHORIZATION = 57360
-const AVG = 57361
-const BETWEEN = 57362
-const BY = 57363
-const CHARACTER = 57364
-const CHECK = 57365
-const CLOSE = 57366
-const COMMIT = 57367
-const CONTINUE = 57368
-const CREATE = 57369
-const CURRENT = 57370
-const CURSOR = 57371
-const DECIMAL = 57372
-const DECLARE = 57373
-const DEFAULT = 57374
-const DELETE = 57375
-const DESC = 57376
-const DISTINCT = 57377
-const DOUBLE = 57378
-const ESCAPE = 57379
-const EXISTS = 57380
-const FETCH = 57381
-const FLOAT = 57382
-const FOR = 57383
-const FOREIGN = 57384
-const FOUND = 57385
-const FROM = 57386
-const GOTO = 57387
-const GRANT = 57388
-const GROUP = 57389
-const HAVING = 57390
-const IN = 57391
-const INDICATOR = 57392
-const INSERT = 57393
-const INTEGER = 57394
-const INTO = 57395
-const IS = 57396
-const MIN = 57397
-const MAX = 57398
-const KEY = 57399
-const LANGUAGE = 57400
-const LIKE = 57401
-const NULLX = 57402
-const NUMERIC = 57403
-const OF = 57404
-const ON = 57405
-const OPEN = 57406
-const OPTION = 57407
-const ORDER = 57408
-const PARAMETER = 57409
-const PRECISION = 57410
-const PRIMARY = 57411
-const PRIVILEGES = 57412
-const PROCEDURE = 57413
-const PUBLIC = 57414
-const REAL = 57415
-const REFERENCES = 57416
-const ROLLBACK = 57417
-const SCHEMA = 57418
-const SELECT = 57419
-const SET = 57420
-const SMALLINT = 57421
-const SOME = 57422
-const SQLCODE = 57423
-const SQLERROR = 57424
-const SUM = 57425
-const TABLE = 57426
-const TO = 57427
-const UNION = 57428
-const UNIQUE = 57429
-const UPDATE = 57430
-const USER = 57431
-const VALUES = 57432
-const VIEW = 57433
-const WHENEVER = 57434
-const WHERE = 57435
-const WITH = 57436
-const WORK = 57437
+const NUMBER = 57348
+const STRING = 57349
+const INTNUM = 57350
+const APPROXNUM = 57351
+const OR = 57352
+const AND = 57353
+const NOT = 57354
+const RELATION = 57355
+const OPERATOR = 57356
+const ASTERISK = 57357
+const ALL = 57358
+const AMMSC = 57359
+const ANY = 57360
+const ASC = 57361
+const AS = 57362
+const AUTHORIZATION = 57363
+const AVG = 57364
+const BETWEEN = 57365
+const BY = 57366
+const CHARACTER = 57367
+const CHECK = 57368
+const CLOSE = 57369
+const COMMIT = 57370
+const CONTINUE = 57371
+const CREATE = 57372
+const CURRENT = 57373
+const COMMA = 57374
+const CURSOR = 57375
+const DECIMAL = 57376
+const DECLARE = 57377
+const DEFAULT = 57378
+const DELETE = 57379
+const DESC = 57380
+const DISTINCT = 57381
+const DOUBLE = 57382
+const ESCAPE = 57383
+const EXISTS = 57384
+const FETCH = 57385
+const FLOAT = 57386
+const FOR = 57387
+const FOREIGN = 57388
+const FOUND = 57389
+const FROM = 57390
+const GOTO = 57391
+const GRANT = 57392
+const GROUP = 57393
+const HAVING = 57394
+const IN = 57395
+const INDICATOR = 57396
+const INSERT = 57397
+const INTEGER = 57398
+const INTO = 57399
+const IS = 57400
+const MIN = 57401
+const MAX = 57402
+const KEY = 57403
+const LANGUAGE = 57404
+const LIKE = 57405
+const NULLX = 57406
+const NUMERIC = 57407
+const OF = 57408
+const ON = 57409
+const OPEN = 57410
+const OPTION = 57411
+const ORDER = 57412
+const PARAMETER = 57413
+const PRECISION = 57414
+const PRIMARY = 57415
+const PRIVILEGES = 57416
+const PROCEDURE = 57417
+const PUBLIC = 57418
+const REAL = 57419
+const REFERENCES = 57420
+const ROLLBACK = 57421
+const SCHEMA = 57422
+const SELECT = 57423
+const SET = 57424
+const SMALLINT = 57425
+const SOME = 57426
+const SQLCODE = 57427
+const SQLERROR = 57428
+const SUM = 57429
+const TABLE = 57430
+const TO = 57431
+const UNION = 57432
+const UNIQUE = 57433
+const UPDATE = 57434
+const USER = 57435
+const VALUES = 57436
+const VIEW = 57437
+const WHENEVER = 57438
+const WHERE = 57439
+const WITH = 57440
+const WORK = 57441
 
 var yyToknames = [...]string{
 	"$end",
@@ -112,16 +121,15 @@ var yyToknames = [...]string{
 	"$unk",
 	"LEX_ERROR",
 	"NAME",
+	"NUMBER",
 	"STRING",
 	"INTNUM",
 	"APPROXNUM",
 	"OR",
 	"AND",
 	"NOT",
-	"'+'",
-	"'-'",
-	"'*'",
-	"'/'",
+	"RELATION",
+	"OPERATOR",
 	"'.'",
 	"ASTERISK",
 	"ALL",
@@ -140,6 +148,7 @@ var yyToknames = [...]string{
 	"CONTINUE",
 	"CREATE",
 	"CURRENT",
+	"COMMA",
 	"CURSOR",
 	"DECIMAL",
 	"DECLARE",
@@ -226,51 +235,57 @@ var yyExca = [...]int{
 
 const yyPrivate = 57344
 
-const yyLast = 11
+const yyLast = 28
 
 var yyAct = [...]int{
-	4, 7, 5, 10, 11, 9, 6, 3, 2, 1,
-	8,
+	13, 4, 8, 17, 20, 23, 22, 21, 6, 26,
+	27, 18, 19, 28, 24, 15, 7, 11, 10, 9,
+	3, 2, 1, 12, 16, 25, 5, 14,
 }
 
 var yyPact = [...]int{
-	-82, -1000, -1000, -1000, -15, -48, -1000, 0, -1000, -13,
-	-1, -1000,
+	-81, -1000, -1000, -1000, 11, -31, -1000, -1000, 11, -98,
+	10, -1000, -1000, 6, -1000, -11, -4, -1000, -7, -8,
+	9, 6, 4, 7, -1000, -1000, -1000, -1000, -1000,
 }
 
 var yyPgo = [...]int{
-	0, 10, 9, 8, 7, 6, 6, 6, 6, 6,
-	6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-	6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-	6, 6, 6, 6, 6,
+	0, 27, 8, 26, 3, 24, 23, 22, 21, 20,
+	19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+	19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
+	19, 19, 19, 19, 19, 19, 19, 19,
 }
 
 var yyR1 = [...]int{
-	0, 2, 6, 8, 8, 9, 9, 10, 10, 11,
-	13, 13, 14, 14, 15, 19, 19, 20, 20, 16,
-	21, 21, 12, 17, 22, 22, 3, 23, 24, 25,
-	26, 27, 27, 28, 28, 30, 31, 4, 5, 29,
-	29, 29, 32, 32, 32, 33, 33, 33, 1, 1,
-	18, 18, 18, 34, 7,
+	0, 7, 11, 13, 13, 14, 14, 15, 15, 16,
+	18, 18, 19, 19, 20, 23, 23, 24, 24, 21,
+	3, 3, 17, 2, 25, 25, 8, 26, 27, 28,
+	29, 30, 30, 31, 31, 33, 34, 9, 9, 10,
+	6, 5, 5, 4, 4, 4, 32, 32, 32, 35,
+	35, 35, 36, 36, 36, 1, 1, 22, 22, 22,
+	37, 12,
 }
 
 var yyR2 = [...]int{
 	0, 1, 5, 0, 1, 1, 2, 1, 1, 6,
 	1, 3, 1, 1, 3, 0, 2, 2, 3, 4,
 	1, 3, 4, 1, 0, 3, 1, 1, 2, 5,
-	4, 1, 3, 1, 1, 1, 1, 3, 2, 1,
-	1, 1, 1, 2, 3, 1, 1, 1, 1, 3,
-	1, 1, 1, 1, 1,
+	4, 1, 3, 1, 1, 1, 1, 4, 3, 2,
+	2, 1, 3, 3, 3, 3, 1, 1, 1, 1,
+	2, 3, 1, 1, 1, 1, 3, 1, 1, 1,
+	1, 1,
 }
 
 var yyChk = [...]int{
-	-1000, -2, -3, -4, 82, 17, -5, 49, -1, 5,
-	16, 5,
+	-1000, -7, -8, -9, 82, -3, -2, 5, 33, -10,
+	49, -2, -6, 98, -1, 5, -5, -4, 5, 6,
+	15, 11, 13, 13, 5, -4, 5, 6, 6,
 }
 
 var yyDef = [...]int{
-	0, -2, 1, 26, 0, 0, 37, 0, 38, 48,
-	0, 49,
+	0, -2, 1, 26, 0, 0, 20, 23, 0, 38,
+	0, 21, 37, 0, 39, 55, 40, 41, 0, 0,
+	0, 0, 0, 0, 56, 42, 43, 44, 45,
 }
 
 var yyTok1 = [...]int{
@@ -278,20 +293,20 @@ var yyTok1 = [...]int{
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	101, 102, 14, 12, 103, 13, 16, 15,
+	101, 102, 3, 3, 103, 3, 15,
 }
 
 var yyTok2 = [...]int{
 	2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-	17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
-	27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
-	37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
-	47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
-	57, 58, 59, 60, 61, 62, 63, 64, 65, 66,
-	67, 68, 69, 70, 71, 72, 73, 74, 75, 76,
-	77, 78, 79, 80, 81, 82, 83, 84, 85, 86,
-	87, 88, 89, 90, 91, 92, 93, 94, 95, 96,
-	97, 98, 99, 100,
+	12, 13, 14, 16, 17, 18, 19, 20, 21, 22,
+	23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+	33, 34, 35, 36, 37, 38, 39, 40, 41, 42,
+	43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+	53, 54, 55, 56, 57, 58, 59, 60, 61, 62,
+	63, 64, 65, 66, 67, 68, 69, 70, 71, 72,
+	73, 74, 75, 76, 77, 78, 79, 80, 81, 82,
+	83, 84, 85, 86, 87, 88, 89, 90, 91, 92,
+	93, 94, 95, 96, 97, 98, 99, 100,
 }
 
 var yyTok3 = [...]int{
@@ -638,27 +653,77 @@ yydefault:
 		{
 			setParseTree(yylex, yyDollar[1].statement)
 		}
+	case 20:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.strs = []string{yyDollar[1].str}
+		}
+	case 21:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.strs = append(yyDollar[1].strs, yyDollar[3].str)
+		}
+	case 23:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.str = yyDollar[1].str
+		}
 	case 26:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
 			yyVAL.statement = yyDollar[1].statement
 		}
 	case 37:
-		yyDollar = yyS[yypt-3 : yypt+1]
+		yyDollar = yyS[yypt-4 : yypt+1]
 		{
-			yyVAL.statement = NewSelect(yyDollar[3].statement)
+			yyVAL.statement = NewSelect(yyDollar[2].strs, yyDollar[3].statement, yyDollar[4].where)
 		}
 	case 38:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.statement = NewSelect(yyDollar[2].strs, yyDollar[3].statement, nil)
+		}
+	case 39:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
 			yyVAL.statement = NewFrom(yyDollar[2].str)
 		}
-	case 48:
+	case 40:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyVAL.where = NewWhere(yyDollar[2].conds)
+		}
+	case 41:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.conds = []*Condition{yyDollar[1].cond}
+		}
+	case 42:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.conds = append(yyDollar[1].conds, yyDollar[3].cond)
+		}
+	case 43:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.cond = NewCondition(yyDollar[2].str, yyDollar[1].str, yyDollar[3].str)
+		}
+	case 44:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.cond = NewCondition(yyDollar[2].str, yyDollar[1].str, yyDollar[3].num)
+		}
+	case 45:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.cond = NewCondition(yyDollar[2].str, yyDollar[1].num, yyDollar[3].num)
+		}
+	case 55:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
 			yyVAL.str = yyDollar[1].str
 		}
-	case 49:
+	case 56:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
 			yyVAL.str = yyDollar[1].str

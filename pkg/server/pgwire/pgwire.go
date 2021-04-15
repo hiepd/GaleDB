@@ -189,28 +189,24 @@ func (sc *sessionConn) handle(db *storage.Database, msg *message) error {
 	if err != nil {
 		return err
 	}
-	logrus.Info(parsed)
+	logrus.Debugf("parsed tree:\n%s", parsed.String())
 	pl := planner.New(db)
 	plan, err := pl.Prepare(parsed)
 	if err != nil {
 		return err
 	}
-	logrus.Info(plan)
+	logrus.WithField("plan", plan).Debugf("query plan")
 	// execute plan
 	iter := plan.Iter()
+	cols := plan.Columns()
+	fields := make([]*field, len(cols))
+	for i, col := range cols {
+		fields[i] = &field{
+			name: col + "\x00",
+		}
+	}
 	rd := &rowDescription{
-		fieldNum: 3,
-		fields: []*field{
-			{
-				name: "col1\x00",
-			},
-			{
-				name: "col2\x00",
-			},
-			{
-				name: "col3\x00",
-			},
-		},
+		fields: fields,
 	}
 	if err := rd.message().writeConn(sc.netConn); err != nil {
 		return err
@@ -312,8 +308,7 @@ func int16ToBytes(n int16) []byte {
 }
 
 type rowDescription struct {
-	fieldNum int16
-	fields   []*field
+	fields []*field
 }
 
 type field struct {
@@ -328,7 +323,7 @@ type field struct {
 
 func (rd *rowDescription) message() *message {
 	res := make([]byte, 0)
-	res = append(res, int16ToBytes(rd.fieldNum)...)
+	res = append(res, int16ToBytes(int16(len(rd.fields)))...)
 	for _, fd := range rd.fields {
 		res = append(res, fd.bytes()...)
 	}
@@ -384,10 +379,11 @@ func convertRowToDataRow(row *entity.Row) *dataRow {
 	for i, val := range row.Values {
 		res := ""
 		switch v := val.(type) {
-		case int32:
+		case int, int16, int32, int64:
 			res = fmt.Sprintf("%d", v)
 		case string:
 			res = v
+		default:
 		}
 		cols[i] = col{
 			dataLen: int32(len(res)),

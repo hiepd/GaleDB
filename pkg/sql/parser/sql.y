@@ -8,11 +8,17 @@ func setParseTree(yylex yyLexer, stmt Statement) {
     /*symbolic tokens*/
 %union {
     str string
+    num int
     statement Statement
+    strs []string
+    cond *Condition
+    conds []*Condition
+    where *Where
 }
 
 %token LEX_ERROR
 %token <str> NAME
+%token <num> NUMBER
 %token STRING
 %token INTNUM APPROXNUM
 
@@ -20,13 +26,13 @@ func setParseTree(yylex yyLexer, stmt Statement) {
 %left OR
 %left AND
 %left NOT
-%left '+' '-'
-%left '*' '/'
+%left <str> RELATION
+%left OPERATOR
 %nonassoc '.'
 
     /*literal keyword tokens*/
 %token <str> ASTERISK ALL AMMSC ANY ASC AS AUTHORIZATION AVG BETWEEN BY
-%token <str> CHARACTER CHECK CLOSE COMMIT CONTINUE CREATE CURRENT
+%token <str> CHARACTER CHECK CLOSE COMMIT CONTINUE CREATE CURRENT COMMA
 %token <str> CURSOR DECIMAL DECLARE DEFAULT DELETE DESC DISTINCT DOUBLE
 %token <str> ESCAPE EXISTS FETCH FLOAT FOR FOREIGN FOUND FROM GOTO
 %token <str> GRANT GROUP HAVING IN INDICATOR INSERT INTEGER INTO IS MIN MAX
@@ -36,7 +42,11 @@ func setParseTree(yylex yyLexer, stmt Statement) {
 %token <str> SMALLINT SOME SQLCODE SQLERROR SUM TABLE TO UNION
 %token <str> UNIQUE UPDATE USER VALUES VIEW WHENEVER WHERE WITH WORK
 
-%type <str> table
+%type <str> table column
+%type <strs> column_commalist
+%type <cond> condition
+%type <conds> condition_list
+%type <where> where_clause
 
 %type <statement> sql
 %type <statement> manipulative_statement select_statement from_clause
@@ -104,8 +114,8 @@ table_constraint_def:
     ;
 
 column_commalist:
-        column
-    | column_commalist ',' column
+        column { $$ = []string{$1} }
+    | column_commalist COMMA column { $$ = append($1, $3) }
     ;
 
 view_def:
@@ -114,6 +124,9 @@ view_def:
 
 column:
         NAME
+     {
+     	$$ = $1
+     }
     ;
 
 opt_column_commalist:
@@ -162,10 +175,14 @@ rollback_statement:
     ;
 
 select_statement:
-    /*      1       2       3   */
-        SELECT ASTERISK from_clause 
+    	/*  1       2       	3   				4		*/
+        SELECT column_commalist from_clause where_clause
         { 
-            $$ = NewSelect($3)
+            $$ = NewSelect($2, $3, $4)
+        }
+    |	SELECT column_commalist from_clause
+        {
+            $$ = NewSelect($2, $3, nil)
         }
     ;
 
@@ -176,6 +193,24 @@ from_clause:
             $$ = NewFrom($2)
         }
     ;
+
+where_clause:
+		WHERE condition_list
+		{
+			$$ = NewWhere($2)
+		}
+	;
+
+condition_list:
+	condition { $$ = []*Condition{$1} }
+	| condition_list AND condition { $$ = append($1, $3) }
+	;
+
+condition:
+	NAME RELATION NAME { $$ = NewCondition($2, $1, $3) }
+	| NAME RELATION NUMBER { $$ = NewCondition($2, $1, $3) }
+	| NUMBER RELATION NUMBER { $$ = NewCondition($2, $1, $3) }
+	;
 
 atom:
         parameter_ref

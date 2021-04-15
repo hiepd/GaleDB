@@ -1,0 +1,272 @@
+
+state 0
+	$accept: .sql $end 
+
+	SELECT  shift 4
+	.  error
+
+	sql  goto 1
+	manipulative_statement  goto 2
+	select_statement  goto 3
+
+state 1
+	$accept:  sql.$end 
+
+	$end  accept
+	.  error
+
+
+state 2
+	sql:  manipulative_statement.    (1)
+
+	.  reduce 1 (src line 58)
+
+
+state 3
+	manipulative_statement:  select_statement.    (26)
+
+	.  reduce 26 (src line 139)
+
+
+state 4
+	select_statement:  SELECT.column_commalist from_clause where_clause 
+	select_statement:  SELECT.column_commalist from_clause 
+
+	NAME  shift 7
+	.  error
+
+	column  goto 6
+	column_commalist  goto 5
+
+state 5
+	column_commalist:  column_commalist.COMMA column 
+	select_statement:  SELECT column_commalist.from_clause where_clause 
+	select_statement:  SELECT column_commalist.from_clause 
+
+	COMMA  shift 8
+	FROM  shift 10
+	.  error
+
+	from_clause  goto 9
+
+state 6
+	column_commalist:  column.    (20)
+
+	.  reduce 20 (src line 116)
+
+
+state 7
+	column:  NAME.    (23)
+
+	.  reduce 23 (src line 125)
+
+
+state 8
+	column_commalist:  column_commalist COMMA.column 
+
+	NAME  shift 7
+	.  error
+
+	column  goto 11
+
+state 9
+	select_statement:  SELECT column_commalist from_clause.where_clause 
+	select_statement:  SELECT column_commalist from_clause.    (38)
+
+	WHERE  shift 13
+	.  reduce 38 (src line 183)
+
+	where_clause  goto 12
+
+state 10
+	from_clause:  FROM.table 
+
+	NAME  shift 15
+	.  error
+
+	table  goto 14
+
+state 11
+	column_commalist:  column_commalist COMMA column.    (21)
+
+	.  reduce 21 (src line 118)
+
+
+state 12
+	select_statement:  SELECT column_commalist from_clause where_clause.    (37)
+
+	.  reduce 37 (src line 177)
+
+
+state 13
+	where_clause:  WHERE.condition_list 
+
+	NAME  shift 18
+	NUMBER  shift 19
+	.  error
+
+	condition  goto 17
+	condition_list  goto 16
+
+state 14
+	from_clause:  FROM table.    (39)
+
+	.  reduce 39 (src line 189)
+
+
+state 15
+	table:  NAME.    (55)
+	table:  NAME.'.' NAME 
+
+	'.'  shift 20
+	.  reduce 55 (src line 233)
+
+
+state 16
+	where_clause:  WHERE condition_list.    (40)
+	condition_list:  condition_list.AND condition 
+
+	AND  shift 21
+	.  reduce 40 (src line 197)
+
+
+state 17
+	condition_list:  condition.    (41)
+
+	.  reduce 41 (src line 204)
+
+
+state 18
+	condition:  NAME.RELATION NAME 
+	condition:  NAME.RELATION NUMBER 
+
+	RELATION  shift 22
+	.  error
+
+
+state 19
+	condition:  NUMBER.RELATION NUMBER 
+
+	RELATION  shift 23
+	.  error
+
+
+state 20
+	table:  NAME '.'.NAME 
+
+	NAME  shift 24
+	.  error
+
+
+state 21
+	condition_list:  condition_list AND.condition 
+
+	NAME  shift 18
+	NUMBER  shift 19
+	.  error
+
+	condition  goto 25
+
+state 22
+	condition:  NAME RELATION.NAME 
+	condition:  NAME RELATION.NUMBER 
+
+	NAME  shift 26
+	NUMBER  shift 27
+	.  error
+
+
+state 23
+	condition:  NUMBER RELATION.NUMBER 
+
+	NUMBER  shift 28
+	.  error
+
+
+state 24
+	table:  NAME '.' NAME.    (56)
+
+	.  reduce 56 (src line 235)
+
+
+state 25
+	condition_list:  condition_list AND condition.    (42)
+
+	.  reduce 42 (src line 206)
+
+
+state 26
+	condition:  NAME RELATION NAME.    (43)
+
+	.  reduce 43 (src line 209)
+
+
+state 27
+	condition:  NAME RELATION NUMBER.    (44)
+
+	.  reduce 44 (src line 211)
+
+
+state 28
+	condition:  NUMBER RELATION NUMBER.    (45)
+
+	.  reduce 45 (src line 212)
+
+Rule not reduced: schema:  CREATE SCHEMA AUTHORIZATION user opt_schema_element_list 
+Rule not reduced: opt_schema_element_list:  
+Rule not reduced: opt_schema_element_list:  schema_element_list 
+Rule not reduced: schema_element_list:  schema_element 
+Rule not reduced: schema_element_list:  schema_element_list schema_element 
+Rule not reduced: schema_element:  base_table_def 
+Rule not reduced: schema_element:  view_def 
+Rule not reduced: base_table_def:  CREATE TABLE table '(' base_table_element_commalist ')' 
+Rule not reduced: base_table_element_commalist:  base_table_element 
+Rule not reduced: base_table_element_commalist:  base_table_element_commalist ',' base_table_element 
+Rule not reduced: base_table_element:  column_def 
+Rule not reduced: base_table_element:  table_constraint_def 
+Rule not reduced: column_def:  column data_type column_def_opt_list 
+Rule not reduced: column_def_opt_list:  
+Rule not reduced: column_def_opt_list:  column_def_opt_list column_def_opt 
+Rule not reduced: column_def_opt:  NOT NULLX 
+Rule not reduced: column_def_opt:  NOT NULLX UNIQUE 
+Rule not reduced: table_constraint_def:  UNIQUE '(' column_commalist ')' 
+Rule not reduced: view_def:  CREATE VIEW table opt_column_commalist 
+Rule not reduced: opt_column_commalist:  
+Rule not reduced: opt_column_commalist:  '(' column_commalist ')' 
+Rule not reduced: close_statement:  CLOSE 
+Rule not reduced: commit_statement:  COMMIT WORK 
+Rule not reduced: insert_statement:  INSERT INTO table opt_column_commalist values_or_query_spec 
+Rule not reduced: values_or_query_spec:  VALUES '(' insert_atom_commalist ')' 
+Rule not reduced: insert_atom_commalist:  insert_atom 
+Rule not reduced: insert_atom_commalist:  insert_atom_commalist ',' insert_atom 
+Rule not reduced: insert_atom:  atom 
+Rule not reduced: insert_atom:  NULLX 
+Rule not reduced: open_statement:  OPEN 
+Rule not reduced: rollback_statement:  ROLLBACK 
+Rule not reduced: atom:  parameter_ref 
+Rule not reduced: atom:  literal 
+Rule not reduced: atom:  USER 
+Rule not reduced: parameter_ref:  parameter 
+Rule not reduced: parameter_ref:  parameter parameter 
+Rule not reduced: parameter_ref:  parameter INDICATOR parameter 
+Rule not reduced: literal:  STRING 
+Rule not reduced: literal:  INTNUM 
+Rule not reduced: literal:  APPROXNUM 
+Rule not reduced: data_type:  CHARACTER 
+Rule not reduced: data_type:  NUMERIC 
+Rule not reduced: data_type:  FLOAT 
+Rule not reduced: parameter:  PARAMETER 
+Rule not reduced: user:  NAME 
+
+103 terminals, 38 nonterminals
+62 grammar rules, 29/16000 states
+0 shift/reduce, 0 reduce/reduce conflicts reported
+87 working sets used
+memory: parser 11/240000
+0 extra closures
+19 shift entries, 1 exceptions
+39 goto entries
+-27 entries saved by goto default
+Optimizer space used: output 28/240000
+28 table entries, 0 zero
+maximum spread: 98, maximum offset: 98

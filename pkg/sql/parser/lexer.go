@@ -11,6 +11,13 @@ import (
 var keywords = map[string]int{
 	"select": SELECT,
 	"from":   FROM,
+	"where":  WHERE,
+	"and":    AND,
+	"=":      RELATION,
+	"<":      RELATION,
+	">":      RELATION,
+	">=":     RELATION,
+	"<=":     RELATION,
 }
 
 //go:generate go run golang.org/x/tools/cmd/goyacc -l -o sql.go sql.y
@@ -29,12 +36,19 @@ func NewLexer(input []byte) *Lexer {
 
 func (l *Lexer) Lex(lval *yySymType) int {
 	sym, val := l.Scan()
-	lval.str = val
-	logrus.WithField("source", "lexer").Infof("scanning %s [%d]", val, sym)
+	switch v := val.(type) {
+	case string:
+		lval.str = v
+	case int:
+		lval.num = v
+	default:
+		panic("invalid lexing type")
+	}
+	logrus.WithField("source", "lexer").Debugf("scanning %s [%d]", val, sym)
 	return sym
 }
 
-func (l *Lexer) Scan() (int, string) {
+func (l *Lexer) Scan() (int, interface{}) {
 	for b := l.next(); b != 0; b = l.next() {
 		switch {
 		case unicode.IsSpace(rune(b)):
@@ -43,31 +57,56 @@ func (l *Lexer) Scan() (int, string) {
 			l.backup()
 			sym, val := l.scanString()
 			return sym, val
+		case unicode.IsDigit(rune(b)):
+			l.backup()
+			sym, val := l.scanNumber()
+			return sym, val
 		default:
 			switch b {
+			case '=', '<', '>':
+				l.backup()
+				sym, val := l.scanRelation()
+				return sym, val
+			case '+', '-':
+				return OPERATOR, string(b)
+			case ',':
+				return COMMA, ","
 			case ';':
-				return 0, ""
-			case '*':
-				return ASTERISK, ""
+				return 0, ";"
+			default:
+				return LEX_ERROR, string(b)
 			}
-			return LEX_ERROR, ""
 		}
 	}
 	return 0, ""
+}
+
+func (l *Lexer) scanRelation() (int, string) {
+	buf := bytes.NewBuffer(nil)
+	for {
+		b := l.next()
+		switch b {
+		case '=', '<', '>':
+			buf.WriteByte(b)
+		default:
+			l.backup()
+			str := buf.String()
+			val, ok := keywords[str]
+			if !ok {
+				return LEX_ERROR, str
+			}
+			return val, str
+		}
+	}
 }
 
 func (l *Lexer) scanString() (int, string) {
 	buf := bytes.NewBuffer(nil)
 	for {
 		b := l.next()
-		switch {
-		case unicode.IsLetter(rune(b)):
+		if unicode.IsLetter(rune(b)) || unicode.IsDigit(rune(b)) || b == '_' {
 			buf.WriteByte(b)
-			break
-		case unicode.IsDigit(rune(b)):
-			buf.WriteByte(b)
-			break
-		default:
+		} else {
 			l.backup()
 			str := buf.String()
 			val, ok := keywords[str]
@@ -75,6 +114,22 @@ func (l *Lexer) scanString() (int, string) {
 				return NAME, str
 			}
 			return val, str
+		}
+	}
+}
+
+func (l *Lexer) scanNumber() (int, int) {
+	res := 0
+	for {
+		b := l.next()
+		if unicode.IsDigit(rune(b)) {
+			res *= 10
+			res += int(b - '0')
+		} else if unicode.IsSpace(rune(b)) || b == ';' {
+			l.backup()
+			return NUMBER, res
+		} else {
+			return LEX_ERROR, 0
 		}
 	}
 }
